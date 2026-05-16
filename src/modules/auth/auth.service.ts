@@ -74,6 +74,7 @@ export class AuthService {
 
     return token;
   }
+
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
       where: { email, deletedAt: null },
@@ -100,12 +101,7 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
-    console.log('login called with userId:', userId);
-    console.log('prisma.refreshToken:', this.prisma.refreshToken);
-    console.log(
-      'prisma keys:',
-      Object.keys(this.prisma).filter((k) => k.includes('refresh')),
-    );
+
     const accessToken = this.generateAccessToken(userId);
     const refreshToken = await this.generateAndStoreRefreshToken(userId);
 
@@ -114,58 +110,63 @@ export class AuthService {
     return new AuthEntity(accessToken, new UserEntity(user!));
   }
 
-  async refresh(rawRefreshToken: string, res: Response): Promise<{ accessToken: string }> {
+  async refresh(
+    rawRefreshToken: string | undefined,
+    res: Response,
+  ): Promise<{ accessToken: string }> {
     // verify signature first — no DB hit if token is invalid
-    console.log('rawRefreshToken received:', rawRefreshToken ? 'present' : 'missing');
-    console.log('token length:', rawRefreshToken?.length);
-    let payload: JwtPayload;
-    try {
-      payload = this.jwtService.verify(rawRefreshToken, {
-        secret: this.jwtConf.refreshSecret,
+    if (rawRefreshToken) {
+      let payload: JwtPayload;
+      try {
+        payload = this.jwtService.verify(rawRefreshToken, {
+          secret: this.jwtConf.refreshSecret,
+        });
+      } catch {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      // look up hashed token in DB
+      const hashed = this.hashToken(rawRefreshToken);
+      const stored = await this.prisma.refreshToken.findUnique({
+        where: { token: hashed },
+        include: { user: true },
       });
-    } catch {
+
+      // not found, revoked, or expired
+      if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+        // revoked token used again — replay attack detected
+        // revoke all tokens for this user, force re-login on all devices
+        if (stored?.revokedAt) {
+          await this.prisma.refreshToken.updateMany({
+            where: { userId: payload.sub, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+        }
+        throw new UnauthorizedException('Invalid or expired refresh token');
+      }
+
+      if (stored.user.status !== 'ACTIVE') {
+        throw new ForbiddenException('Account is suspended');
+      }
+
+      // rotate — revoke old, issue new
+      await this.prisma.refreshToken.update({
+        where: { id: stored.id },
+        data: { revokedAt: new Date() },
+      });
+
+      const newRefreshToken = await this.generateAndStoreRefreshToken(stored.userId);
+      this.setRefreshTokenCookie(res, newRefreshToken);
+
+      const accessToken = this.generateAccessToken(stored.userId);
+
+      return { accessToken };
+    } else {
       throw new UnauthorizedException('Invalid refresh token');
     }
-
-    // look up hashed token in DB
-    const hashed = this.hashToken(rawRefreshToken);
-    const stored = await this.prisma.refreshToken.findUnique({
-      where: { token: hashed },
-      include: { user: true },
-    });
-
-    // not found, revoked, or expired
-    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
-      // revoked token used again — replay attack detected
-      // revoke all tokens for this user, force re-login on all devices
-      if (stored?.revokedAt) {
-        await this.prisma.refreshToken.updateMany({
-          where: { userId: payload.sub, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
-      }
-      throw new UnauthorizedException('Invalid or expired refresh token');
-    }
-
-    if (stored.user.status !== 'ACTIVE') {
-      throw new ForbiddenException('Account is suspended');
-    }
-
-    // rotate — revoke old, issue new
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
-      data: { revokedAt: new Date() },
-    });
-
-    const newRefreshToken = await this.generateAndStoreRefreshToken(stored.userId);
-    this.setRefreshTokenCookie(res, newRefreshToken);
-
-    const accessToken = this.generateAccessToken(stored.userId);
-
-    return { accessToken };
   }
 
-  async logout(rawRefreshToken: string, res: Response): Promise<void> {
+  async logout(rawRefreshToken: string | undefined, res: Response): Promise<void> {
     if (rawRefreshToken) {
       const hashed = this.hashToken(rawRefreshToken);
       await this.prisma.refreshToken.updateMany({

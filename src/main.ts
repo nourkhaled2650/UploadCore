@@ -4,7 +4,7 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import appConfig from './config/app.config';
-
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
@@ -19,7 +19,16 @@ async function bootstrap() {
   );
 
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('UploadCore API')
+    .setDescription('File upload and user management service')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .addCookieAuth('refresh_token')
+    .build();
 
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
   const appConf = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
   await app.listen(appConf.port);

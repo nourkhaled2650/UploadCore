@@ -1,22 +1,26 @@
 import {
-  Controller,
-  Post,
-  Get,
   Body,
-  Res,
-  Req,
-  UseGuards,
+  Controller,
+  Get,
   HttpCode,
   HttpStatus,
+  Post,
+  Req,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiCookieAuth, ApiTags } from '@nestjs/swagger';
+import type { User } from '@prisma/client';
 import type { Request, Response } from 'express';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { UserEntity } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
-import { UserEntity } from '../users/entities/user.entity';
+import { LoginDto } from 'src/modules/auth/dto/login.dto';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -30,35 +34,39 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(LocalAuthGuard)
-  login(@CurrentUser() user: any, @Res({ passthrough: true }) res: Response) {
+  @ApiBody({ type: LoginDto })
+  login(@CurrentUser() user: User, @Res({ passthrough: true }) res: Response) {
     return this.authService.login(user.id, res);
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.refresh_token;
+    const refreshToken = req.cookies.refresh_token as string | undefined;
     return this.authService.refresh(refreshToken, res);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiCookieAuth('refresh_token')
   logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.refresh_token;
+    const refreshToken = req.cookies.refresh_token as string | undefined;
     return this.authService.logout(refreshToken, res);
   }
 
   @Post('logout-all')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
-  logoutAll(@CurrentUser() user: any, @Res({ passthrough: true }) res: Response) {
+  @ApiBearerAuth()
+  logoutAll(@CurrentUser() user: User, @Res({ passthrough: true }) res: Response) {
     return this.authService.logoutAll(user.id, res);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@CurrentUser() user: any) {
+  me(@CurrentUser() user: User) {
     return new UserEntity(user);
   }
 }
