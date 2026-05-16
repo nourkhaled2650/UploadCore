@@ -52,10 +52,7 @@ export class AuthController {
   @Post('logout-all')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
-  logoutAll(
-    @CurrentUser() user: any,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  logoutAll(@CurrentUser() user: any, @Res({ passthrough: true }) res: Response) {
     return this.authService.logoutAll(user.id, res);
   }
 

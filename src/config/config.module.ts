@@ -8,22 +8,17 @@ import jwtConfig from './jwt.config';
 @Module({
   imports: [
     ConfigModule.forRoot({
-        
       isGlobal: true,
       load: [appConfig, databaseConfig, jwtConfig],
       validate: (config) => {
         const result = envSchema.safeParse(config);
 
         if (!result.success) {
-          const messages = Object.entries(
-            result.error.flatten().fieldErrors,
-          )
+          const messages = Object.entries(result.error.flatten().fieldErrors)
             .map(([field, errors]) => `  ${field}: ${errors?.join(', ')}`)
             .join('\n');
 
-          throw new Error(
-            `\n\nInvalid environment variables:\n${messages}\n`,
-          );
+          throw new Error(`\n\nInvalid environment variables:\n${messages}\n`);
         }
 
         return result.data;

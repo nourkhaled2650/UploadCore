@@ -1,9 +1,7 @@
 import { z } from 'zod';
 
 export const envSchema = z.object({
-  NODE_ENV: z
-    .enum(['development', 'production', 'test'])
-    .default('development'),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().min(1).max(65535).default(3000),
 
   // Database
@@ -20,7 +18,6 @@ export const envSchema = z.object({
     .min(32, { error: 'JWT_REFRESH_SECRET must be at least 32 characters' }),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
-
 
   // Redis
   REDIS_HOST: z.string().default('localhost'),

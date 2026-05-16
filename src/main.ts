@@ -15,13 +15,10 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
       disableErrorMessages: ENV.NODE_ENV === 'production',
-
     }),
   );
 
-  app.useGlobalInterceptors(
-    new ClassSerializerInterceptor(app.get(Reflector)),
-  );
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   const appConf = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
@@ -31,4 +28,4 @@ async function bootstrap() {
   console.log(`App running on ${url}`);
 }
 
-bootstrap();
+void bootstrap();

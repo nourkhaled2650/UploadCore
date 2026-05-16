@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsOptional, Matches } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Matches } from 'class-validator';
 import { REGEX } from 'src/common/constants/regex.constants';
 
 export class CreateUserDto {
@@ -6,10 +6,9 @@ export class CreateUserDto {
   email: string;
 
   @IsString()
-  @Matches(
-    REGEX.PASSWORD,
-    { message: 'Password must contain uppercase, lowercase, number and special character' }
-  )
+  @Matches(REGEX.PASSWORD, {
+    message: 'Password must contain uppercase, lowercase, number and special character',
+  })
   password: string;
 
   @IsString()
