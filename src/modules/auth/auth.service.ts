@@ -1,17 +1,18 @@
-import { Injectable, Inject, ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'crypto';
 import { Response } from 'express';
+import appConfig from 'src/config/app.config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UsersService } from '../users/users.service';
-import { ENV } from 'src/config/env';
-import jwtConfig from 'src/config/jwt.config';
-import type { JwtPayload, SignOptions } from 'jsonwebtoken';
-import * as bcrypt from 'bcrypt';
+
 import { UserStatus } from '@prisma/client';
-import { RegisterDto } from './dto/register.dto';
+import * as bcrypt from 'bcrypt';
+import type { JwtPayload, SignOptions } from 'jsonwebtoken';
+import jwtConfig from 'src/config/jwt.config';
 import { UserEntity } from '../users/entities/user.entity';
+import { RegisterDto } from './dto/register.dto';
 import { AuthEntity } from './entities/auth.entity';
 @Injectable()
 export class AuthService {
@@ -19,6 +20,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    @Inject(appConfig.KEY)
+    private readonly appConf: ConfigType<typeof appConfig>,
     @Inject(jwtConfig.KEY)
     private readonly jwtConf: ConfigType<typeof jwtConfig>,
   ) {}
@@ -40,15 +43,13 @@ export class AuthService {
   private setRefreshTokenCookie(res: Response, token: string): void {
     res.cookie('refresh_token', token, {
       httpOnly: true,
-      secure: ENV.NODE_ENV === 'production',
+      secure: this.appConf.env === 'production',
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   }
 
   private async generateAndStoreRefreshToken(userId: string): Promise<string> {
-    console.log('prisma.refreshToken:', this.prisma.refreshToken);
-
     const token = this.jwtService.sign(
       { sub: userId },
       {
@@ -81,10 +82,8 @@ export class AuthService {
     if (!user) return null;
 
     const passwordValid = await bcrypt.compare(password, user.password);
-    console.log('user found:', user?.email, user?.status);
 
     if (!passwordValid) return null;
-    console.log('password valid:', passwordValid);
 
     if (user.status !== UserStatus.ACTIVE) {
       throw new ForbiddenException('Account is not active. Please verify your email.');

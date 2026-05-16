@@ -1,10 +1,9 @@
-import { NestFactory, Reflector } from '@nestjs/core';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
+import { NestFactory, Reflector } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import appConfig from './config/app.config';
-import { ENV } from './config/env';
-import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,7 +13,8 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      disableErrorMessages: ENV.NODE_ENV === 'production',
+      disableErrorMessages:
+        app.get<ConfigType<typeof appConfig>>(appConfig.KEY).env === 'production',
     }),
   );
 
