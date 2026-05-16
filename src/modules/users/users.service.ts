@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -6,6 +6,7 @@ import { UserEntity } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateUserDto): Promise<UserEntity> {
@@ -25,7 +26,6 @@ export class UsersService {
         password: hashedPassword,
       },
     });
-
     return new UserEntity(user);
   }
 
@@ -37,7 +37,6 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
     return new UserEntity(user);
   }
 }

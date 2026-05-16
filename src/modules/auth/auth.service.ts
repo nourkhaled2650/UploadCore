@@ -1,4 +1,10 @@
-import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'crypto';
@@ -16,6 +22,7 @@ import { RegisterDto } from './dto/register.dto';
 import { AuthEntity } from './entities/auth.entity';
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
@@ -87,6 +94,7 @@ export class AuthService {
     if (!passwordValid) return null;
 
     if (user.status !== UserStatus.ACTIVE) {
+      this.logger.warn(`Login blocked — account not active: ${email} (${user.status})`);
       throw new ForbiddenException('Account is not active. Please verify your email.');
     }
 
@@ -106,7 +114,7 @@ export class AuthService {
     const refreshToken = await this.generateAndStoreRefreshToken(userId);
 
     this.setRefreshTokenCookie(res, refreshToken);
-
+    this.logger.log(`User logged in: ${userId}`);
     return new AuthEntity(accessToken, new UserEntity(user!));
   }
 
@@ -137,6 +145,7 @@ export class AuthService {
         // revoked token used again — replay attack detected
         // revoke all tokens for this user, force re-login on all devices
         if (stored?.revokedAt) {
+          this.logger.warn(`Replay attack detected for user: ${payload.sub}`);
           await this.prisma.refreshToken.updateMany({
             where: { userId: payload.sub, revokedAt: null },
             data: { revokedAt: new Date() },
@@ -159,7 +168,7 @@ export class AuthService {
       this.setRefreshTokenCookie(res, newRefreshToken);
 
       const accessToken = this.generateAccessToken(stored.userId);
-
+      this.logger.log(`Token rotated for user: ${stored.userId}`);
       return { accessToken };
     } else {
       throw new UnauthorizedException('Invalid refresh token');
@@ -174,7 +183,7 @@ export class AuthService {
         data: { revokedAt: new Date() },
       });
     }
-
+    this.logger.log(`User logged out: session revoked`);
     res.clearCookie('refresh_token');
   }
   async logoutAll(userId: string, res: Response): Promise<void> {
@@ -182,7 +191,7 @@ export class AuthService {
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
-
+    this.logger.log(`All sessions revoked for user: ${userId}`);
     res.clearCookie('refresh_token');
   }
 }

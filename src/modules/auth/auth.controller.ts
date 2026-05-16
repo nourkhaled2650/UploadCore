@@ -41,6 +41,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @ApiCookieAuth('refresh_token')
   refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refreshToken = req.cookies.refresh_token as string | undefined;
     return this.authService.refresh(refreshToken, res);
@@ -66,6 +67,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   me(@CurrentUser() user: User) {
     return new UserEntity(user);
   }

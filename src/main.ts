@@ -5,8 +5,10 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import appConfig from './config/app.config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
@@ -32,9 +34,6 @@ async function bootstrap() {
   const appConf = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
   await app.listen(appConf.port);
-
-  const url = await app.getUrl();
-  console.log(`App running on ${url}`);
 }
 
 void bootstrap();
