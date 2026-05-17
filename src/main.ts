@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 import appConfig from './config/app.config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
+import { ResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
@@ -21,6 +22,10 @@ async function bootstrap() {
   );
 
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(app.get(Reflector)),
+    new ResponseInterceptor(app.get(Reflector)),
+  );
   const swaggerConfig = new DocumentBuilder()
     .setTitle('UploadCore API')
     .setDescription('File upload and user management service')

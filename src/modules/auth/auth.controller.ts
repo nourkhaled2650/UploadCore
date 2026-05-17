@@ -19,6 +19,9 @@ import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { LoginDto } from 'src/modules/auth/dto/login.dto';
+import { ResponseMessage } from 'src/common/decorators/response-message.decorator';
+import { ApiSuccessResponse } from 'src/common/decorators/response.decorator';
+import { AuthEntity } from 'src/modules/auth/entities/auth.entity';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -27,6 +30,7 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+  @ApiSuccessResponse(UserEntity)
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
@@ -34,6 +38,8 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(LocalAuthGuard)
+  @ResponseMessage('Login successful')
+  @ApiSuccessResponse(AuthEntity)
   @ApiBody({ type: LoginDto })
   login(@CurrentUser() user: User, @Res({ passthrough: true }) res: Response) {
     return this.authService.login(user.id, res);
@@ -41,6 +47,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Token refreshed')
   @ApiCookieAuth('refresh_token')
   refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refreshToken = req.cookies.refresh_token as string | undefined;
@@ -68,6 +75,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @ApiSuccessResponse(UserEntity)
   me(@CurrentUser() user: User) {
     return new UserEntity(user);
   }
