@@ -20,7 +20,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { LoginDto } from 'src/modules/auth/dto/login.dto';
 import { ResponseMessage } from 'src/common/decorators/response-message.decorator';
-import { ApiSuccessResponse } from 'src/common/decorators/response.decorator';
+import { ApiSuccessResponse } from 'src/common/decorators/api-success.decorator';
 import { AuthEntity } from 'src/modules/auth/entities/auth.entity';
 
 @ApiTags('Auth')
@@ -38,7 +38,6 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(LocalAuthGuard)
-  @ResponseMessage('Login successful')
   @ApiSuccessResponse(AuthEntity)
   @ApiBody({ type: LoginDto })
   login(@CurrentUser() user: User, @Res({ passthrough: true }) res: Response) {
